@@ -12,10 +12,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
+COPY app/requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip wheel && \
     pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+COPY app/ .
 
 CMD exec gunicorn --bind :$PORT --workers 1 --threads 8 --timeout 300 handle:app

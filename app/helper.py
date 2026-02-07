@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.optimize import minimize, Bounds
+from scipy.stats import norm
 
 def run_cca(metric, s0_target, voleq_target, tev0_target, rfr, t, nsim=1e5, seed=42):
     np.random.seed(seed)
@@ -44,6 +45,27 @@ def run_cca(metric, s0_target, voleq_target, tev0_target, rfr, t, nsim=1e5, seed
 
     flag_output = True
     vals = calibration_v(st, metric, each_shares, rfr, t, ncomps, nsim, metric_id, flag_output)
+
+    # up and reval
+    st_bump = mc(x_opt[0] * 1.005, x_opt[1], rfr, t, dz)
+    vals_bump = calibration_v(st_bump, metric, each_shares, rfr, t, ncomps, nsim, metric_id, flag_output)
+
+    # delta and spec volatility
+    vals['delta'] = (vals_bump['fair_value_per_share'] - vals['fair_value_per_share']) * each_shares / (vals_bump['tev0'] - vals['tev0'])
+    vals['spec_vol'] = voleq_target * vals['delta'] * vals['tev0'] / (vals['fair_value_per_share'] * each_shares)
+    vals['spec_vol'][metric_id['cm'] - 1] = x_opt[1]
+    vals['spec_vol'] = np.round(vals['spec_vol'] / 0.025) * 0.025 # round to nearest 0.025
+
+    # dlom
+    sigma2t = t * vals['spec_vol']**2 / 2
+    v2t = sigma2t + np.log(2 * (np.exp(sigma2t) - sigma2t - 1)) - 2 * np.log(np.exp(sigma2t) - 1)
+    vt = np.sqrt(v2t)
+    d = vt / 2
+    q = 0.0
+    vals['dlom'] = np.round(np.exp(-q*t) * (2 * norm.cdf(d) - 1) / 0.025) * 0.025 # round to nearest 0.025
+
+    # calculate post-dlom fair value
+    vals['fair_value_per_share_post_dlom'] = vals['fair_value_per_share'] * (1 - vals['dlom'])
 
     result = vals
     result['volcm'] = x_opt[1]

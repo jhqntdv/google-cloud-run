@@ -211,7 +211,10 @@ def handle_upload():
                     class_name = class_names.iloc[i] if i < len(class_names) else f'Class {i+1}'
                     strike_val = result['strikes'][i] if i < len(result['strikes']) else 'N/A'
                     time_perf = 'Time-based' if (i < len(result['is_time']) and result['is_time'][i] == 1) else 'Perf-based'
+                    spec_vol = result['spec_vol'][i] if i < len(result['spec_vol']) else 'N/A'
                     fair_val = result['fair_value_per_share'][i]
+                    dlom = result['dlom'][i] if i < len(result['dlom']) else 'N/A'
+                    fair_val_post_dlom = result['fair_value_per_share_post_dlom'][i] if i < len(result['fair_value_per_share_post_dlom']) else 'N/A'
                     
                     # Format strike_val outside the f-string
                     formatted_strike = f"{strike_val:.2f}" if isinstance(strike_val, (int, float)) else strike_val
@@ -221,7 +224,10 @@ def handle_upload():
                         <td class="text-center">{class_name}</td>
                         <td class="text-center">${formatted_strike}</td>
                         <td class="text-center">{time_perf}</td>
+                        <td class="text-center">{spec_vol:.1%}</td>
                         <td class="text-center">${fair_val:.2f}</td>
+                        <td class="text-center">{dlom:.1%}</td>
+                        <td class="text-center">${fair_val_post_dlom:.2f}</td>
                     </tr>
                     '''
 
@@ -230,7 +236,7 @@ def handle_upload():
                     <h5 class="mb-3">Analysis Summary</h5>
                     <p class="mb-4" style="text-align: justify; line-height: 1.6;">
                         Based on the analysis, there are <strong>{result['num_of_class']} classes</strong> of equity instruments. 
-                        The total equity value is <strong>${result['tev0']/1000:,.0f} thousand(s)</strong> with an option dilution impact of <strong>{dilution_pct:.2f}%</strong>. 
+                        The total equity value is <strong>${result['tev0']/1000:,.0f} thousand(s)</strong> and Class A (common) accounts for <strong>{dilution_pct:.2f}% of the total equity value</strong>. 
                         {f"Furthermore, we estimated the equity volatility to be <strong>{equity_vol_pct:.2f}%</strong> and the common stock volatility to be <strong>{common_vol_pct:.2f}%</strong>. " if time_to_exit > 0.01 else "Based on the immediate exit scenario, we performed a liquidation analysis instead. "}
                         The fair value per share of each class are detailed in the table below
                     </p>
@@ -243,7 +249,10 @@ def handle_upload():
                                     <th class="text-center" style="min-width: 100px;">Class</th>
                                     <th class="text-center" style="min-width: 120px;">Strike Price ($)</th>
                                     <th class="text-center" style="min-width: 140px;">Vesting Type</th>
-                                    <th class="text-center" style="min-width: 140px;">Fair Value per Share ($)</th>
+                                    <th class="text-center" style="min-width: 140px;">Specific Volatility</th>
+                                    <th class="text-center" style="min-width: 140px;">Marketable Value ($)</th>
+                                    <th class="text-center" style="min-width: 140px;">DLOM</th>
+                                    <th class="text-center" style="min-width: 140px;">Non-Marketable Value ($)</th>
                                 </tr>
                             </thead>
                             <tbody>
