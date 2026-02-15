@@ -66,6 +66,7 @@ def handle_upload():
                                     <div class="col-6">
                                         <label class="form-label">Equity Volatility</label>
                                         <input type="number" name="stock_volatility" class="form-control" value="0.45" step="0.01" min="0.01" max="1.0" required>
+                                        <div class="form-text">Range: 1 - 100 %</div>
                                     </div>
                                     <div class="col-6">
                                         <label class="form-label">Time to Exit (Years)</label>
@@ -183,7 +184,7 @@ def handle_upload():
                 return f"The uploaded file exceeds the maximum allowed rows of {MAX_DF_ROWS}.", 400
             
             df_display = df.copy().round(2)
-            df_display = df_display.loc[:, ['class', 'shares', 'strike', 'groups', 'Note']] # manual
+            df_display = df_display.loc[:, ['class', 'shares', 'strike', 'Note']] # manual
             class_names = df.loc[:, 'class']
             
             # df has index and headers, read df values as metric
@@ -211,7 +212,8 @@ def handle_upload():
                 for i in range(len(result['fair_value_per_share'])):
                     class_name = class_names.iloc[i] if i < len(class_names) else f'Class {i+1}'
                     strike_val = result['strikes'][i] if i < len(result['strikes']) else 'N/A'
-                    time_perf = 'Time-based' if (i < len(result['is_time']) and result['is_time'][i] == 1) else 'Perf-based'
+                    time_perf = 'T' if (i < len(result['is_time']) and result['is_time'][i] == 1) else 'P'
+                    intrinsic_val = result['intrinsic_value_per_share'][i] if i < len(result['intrinsic_value_per_share']) else 'N/A'
                     spec_vol = result['spec_vol'][i] if i < len(result['spec_vol']) else 'N/A'
                     fair_val = result['fair_value_per_share'][i]
                     dlom = result['dlom'][i] if i < len(result['dlom']) else 'N/A'
@@ -225,6 +227,7 @@ def handle_upload():
                         <td class="text-center">{class_name}</td>
                         <td class="text-center">${formatted_strike}</td>
                         <td class="text-center">{time_perf}</td>
+                        <td class="text-center">${intrinsic_val:.2f}</td>
                         <td class="text-center">{spec_vol:.1%}</td>
                         <td class="text-center">${fair_val:.2f}</td>
                         <td class="text-center">{dlom:.1%}</td>
@@ -248,12 +251,13 @@ def handle_upload():
                             <thead class="table-dark sticky-top">
                                 <tr>
                                     <th class="text-center" style="min-width: 100px;">Class</th>
-                                    <th class="text-center" style="min-width: 120px;">Strike Price ($)</th>
+                                    <th class="text-center" style="min-width: 120px;">Strike ($)</th>
                                     <th class="text-center" style="min-width: 140px;">Vesting Type</th>
+                                    <th class="text-center" style="min-width: 140px;">Intrinsic Value ($)</th>
                                     <th class="text-center" style="min-width: 140px;">Specific Volatility (Rounded)</th>
-                                    <th class="text-center" style="min-width: 140px;">Marketable Value ($)</th>
+                                    <th class="text-center" style="min-width: 140px;">FV ($)</th>
                                     <th class="text-center" style="min-width: 140px;">DLOM (Rounded)</th>
-                                    <th class="text-center" style="min-width: 140px;">Non-Marketable Value ($)</th>
+                                    <th class="text-center" style="min-width: 140px;">FV after DLOM ($)</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -264,8 +268,11 @@ def handle_upload():
                     <p class="mb-2" style="text-align: justify; line-height: 1.6;">
                         <em>Note: The analysis has verified the discount factor (Dt) of <strong>{result['check'][0]:.2%}</strong> and convergence after <strong>{result['iterations']} iterations</strong></em>
                     </p>
-                    <p class="mb-4" style="text-align: justify; line-height: 1.6;">
-                        <em>Note: For cliff vesting, the fair value calculation assumes a three-tier vesting schedule: one-third vests at the start date, another third at the midpoint between the start and end dates, and the final third at the end date.</em>
+                    <p class="mb-2" style="text-align: justify; line-height: 1.6;">
+                        <em>Note: Marketability Discount (DLOM) were estimated using Finnerty Average-Strike Put Option (2012) formula with specific volatility and time to exit assumptions.</em>
+                    </p>
+                    <p class="mb-2" style="text-align: justify; line-height: 1.6;">
+                        <em>Note: The FV were estimated through Monte Carlo Simulation and can be interpreted as the Intrinsic Value plus the Time Value.</em>
                     </p>
                 </div>
                 '''

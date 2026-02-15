@@ -274,6 +274,8 @@ def calibration_v(st, metric, each_shares, rfr, t, ncomps, nsim, metric_id, flag
         vals['strikes'] = strikes
         vals['is_time'] = is_time
         vals['is_cliff'] = is_cliff
+        vals['intrinsic_value_per_share'] = np.maximum(vals['s0'] - strikes, 0)
+        
     return vals
 
 def mc(s0, vol, rfr, t, dz):

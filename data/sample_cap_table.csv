@@ -1,0 +1,16 @@
+class,shares,is_time,strike,v_cnt,vstart,vmid,vend,vstart_perc,vmid_perc,vend_perc,groups,is_cliff,Note
+Common,10000,1,0,0,-1,-1,-1,-100.00%,-100.00%,-100.00%,1,0,Common - Time-Based
+Security A,100,1,10,0,-1,-1,-1,-100.00%,-100.00%,-100.00%,2,0,Security A - Time-Based
+Security B,100,0,10,2,20,-1,30,50.00%,-100.00%,100.00%,2,1,"Security B - Performance-Based (Cliff), 2 Tranche(s) Vesting @ $20 / $30 for 50% / 100%"
+Security C,100,0,10,2,20,-1,30,50.00%,-100.00%,100.00%,2,0,"Security C - Performance-Based (Linear), 2 Tranche(s) Vesting @ $20 / $30 for 50% / 100%"
+Security D,100,1,25,0,-1,-1,-1,-100.00%,-100.00%,-100.00%,3,0,Security D - Time-Based
+Security E,100,0,25,3,30,40,50,50.00%,75.00%,100.00%,3,1,"Security E - Performance-Based (Cliff), 3 Tranche(s) Vesting @ $30 / $40 / $50 for 50% / 75% / 100%"
+Security F,100,0,25,3,30,40,50,50.00%,75.00%,100.00%,3,0,"Security F - Performance-Based (Linear), 3 Tranche(s) Vesting @ $30 / $40 / $50 for 50% / 75% / 100%"
+Security G,100,0,25,1,30,-1,-1,100.00%,-100.00%,-100.00%,3,1,"Security G - Performance-Based (Cliff), 1 Tranche(s) Vesting @ $30 for 100%"
+Security H,100,0,25,1,40,-1,-1,100.00%,-100.00%,-100.00%,3,1,"Security H - Performance-Based (Cliff), 1 Tranche(s) Vesting @ $40 for 100%"
+Security I,100,0,0,1,30,-1,-1,100.00%,-100.00%,-100.00%,4,1,"Security I - Performance-Based (Cliff), 1 Tranche(s) Vesting @ $30 for 100%"
+Security J,100,0,0,1,40,-1,-1,100.00%,-100.00%,-100.00%,4,1,"Security J - Performance-Based (Cliff), 1 Tranche(s) Vesting @ $40 for 100%"
+Security K,100,0,0,2,30,-1,40,0.00%,-100.00%,100.00%,4,1,"Security K - Performance-Based (Cliff), 2 Tranche(s) Vesting @ $30 / $40 for 0% / 100%"
+Security L,100,0,0,2,30,-1,40,0.00%,-100.00%,100.00%,4,0,"Security L - Performance-Based (Linear), 2 Tranche(s) Vesting @ $30 / $40 for 0% / 100%"
+Security M,100,0,0,3,10,25,40,33.33%,66.67%,100.00%,5,1,"Security M - Performance-Based (Cliff), 3 Tranche(s) Vesting @ $10 / $25 / $40 for 33% / 67% / 100%"
+Security N,100,0,0,3,10,25,40,33.33%,66.67%,100.00%,5,0,"Security N - Performance-Based (Linear), 3 Tranche(s) Vesting @ $10 / $25 / $40 for 33% / 67% / 100%"
