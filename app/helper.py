@@ -275,7 +275,7 @@ def calibration_v(st, metric, each_shares, rfr, t, ncomps, nsim, metric_id, flag
         vals['is_time'] = is_time
         vals['is_cliff'] = is_cliff
         intrinsic_value_per_share = np.maximum(vals['s0'] - strikes, 0)
-        mask_strike = strikes > 0
+        mask_strike = strikes == 0
         intrinsic_value_per_share[mask_strike] = intrinsic_value_per_share[mask_strike] * np.mean(vest_array, axis=0)[mask_strike] * np.exp(-rfr * t)
         vals['intrinsic_value_per_share'] = intrinsic_value_per_share
     return vals
