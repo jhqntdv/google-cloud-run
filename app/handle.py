@@ -9,7 +9,7 @@ app = Flask(__name__)
 
 MAX_FILE_SIZE_MB = 5
 MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
-MAX_DF_COLUMNS = 10
+MAX_DF_COLUMNS = 15
 MAX_DF_ROWS = 50
 
 @app.route("/", methods=["GET", "POST"])
@@ -65,7 +65,7 @@ def handle_upload():
                                     </div>
                                     <div class="col-6">
                                         <label class="form-label">Equity Volatility</label>
-                                        <input type="number" name="stock_volatility" class="form-control" value="0.45" step="0.01" required>
+                                        <input type="number" name="stock_volatility" class="form-control" value="0.45" step="0.01" min="0.01" max="1.0" required>
                                     </div>
                                     <div class="col-6">
                                         <label class="form-label">Time to Exit (Years)</label>
@@ -74,7 +74,7 @@ def handle_upload():
                                     </div>
                                     <div class="col-6">
                                         <label class="form-label">Risk Free Rate</label>
-                                        <input type="number" name="risk_free_rate" class="form-control" value="0.05" step="0.0001" required>
+                                        <input type="number" name="risk_free_rate" class="form-control" value="0.05" step="0.0001" min="0.0" required>
                                     </div>
                                 </div>
                                 
@@ -183,10 +183,11 @@ def handle_upload():
                 return f"The uploaded file exceeds the maximum allowed rows of {MAX_DF_ROWS}.", 400
             
             df_display = df.copy().round(2)
+            df_display = df_display.loc[:, ['class', 'shares', 'strike', 'groups', 'Note']] # manual
             class_names = df.loc[:, 'class']
             
             # df has index and headers, read df values as metric
-            metric = df.loc[:, 'shares':].values
+            metric = df.loc[:, 'shares':'is_cliff'].values  # manual
             nsim = 2*10**4 if time_to_exit > 0.01 else 1
             seed = 42
 
@@ -249,9 +250,9 @@ def handle_upload():
                                     <th class="text-center" style="min-width: 100px;">Class</th>
                                     <th class="text-center" style="min-width: 120px;">Strike Price ($)</th>
                                     <th class="text-center" style="min-width: 140px;">Vesting Type</th>
-                                    <th class="text-center" style="min-width: 140px;">Specific Volatility</th>
+                                    <th class="text-center" style="min-width: 140px;">Specific Volatility (Rounded)</th>
                                     <th class="text-center" style="min-width: 140px;">Marketable Value ($)</th>
-                                    <th class="text-center" style="min-width: 140px;">DLOM</th>
+                                    <th class="text-center" style="min-width: 140px;">DLOM (Rounded)</th>
                                     <th class="text-center" style="min-width: 140px;">Non-Marketable Value ($)</th>
                                 </tr>
                             </thead>

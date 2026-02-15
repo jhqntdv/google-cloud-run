@@ -11,18 +11,24 @@ def run_cca(metric, s0_target, voleq_target, tev0_target, rfr, t, nsim=1e5, seed
     # metric column indices
     metric_id = {
         'shares': 1,
-        'strike': 2,
-        'vstart': 3,
-        'vend': 4,
-        'is_time': 5,
-        'v_cnt': 6,
-        'groups': 7,
-        'is_cliff': 8,
+        'is_time': 2,
+        'strike': 3,
+        'v_cnt': 4,
+        'vstart': 5,
+        'vmid': 6,
+        'vend': 7,
+        'vstart_perc': 8,
+        'vmid_perc': 9,
+        'vend_perc': 10,
+        'groups': 11,
+        'is_cliff': 12,
+        'Note': 13,
         'cm': 1  # common stock index
     }
 
-    if not validate_metric(metric, metric_id):
-        result = {'status': False, 'message': 'metric validation failed'}
+    validation = validate_metric(metric, metric_id)
+    if not validation['status']:
+        result = {'status': False, 'message': validation['message']}
         return result
 
     ncomps = metric.shape[0]
@@ -97,56 +103,52 @@ def run_cca(metric, s0_target, voleq_target, tev0_target, rfr, t, nsim=1e5, seed
 def validate_metric(metric, metric_id):
     strikes = metric[:, metric_id['strike'] - 1]
     vstarts = metric[:, metric_id['vstart'] - 1] 
+    vmids = metric[:, metric_id['vmid'] - 1]
     vends = metric[:, metric_id['vend'] - 1]
     is_time_flags = metric[:, metric_id['is_time'] - 1]
     v_cnts = metric[:, metric_id['v_cnt'] - 1]
-    is_cliff_flags = metric[:, metric_id['is_cliff'] - 1]
-    # 1. All values in metric should be non-negative
-    all_non_negative = np.all(metric >= 0)
-    if not all_non_negative:
-        negative_positions = np.where(metric < 0)
-        return False
-    
-    # 2. First row should be common (with strike 0 and is_time 1)
-    first_row_strike_valid = strikes[0] == 0
-    first_row_is_time_valid = is_time_flags[0] == 1
+
+    # 1. First row should be common (with strike 0 and is_time 1)
+    common_idx = metric_id['cm'] - 1
+    first_row_strike_valid = strikes[common_idx] == 0
+    first_row_is_time_valid = is_time_flags[common_idx] == 1
     if not first_row_strike_valid:
-        return False
+        return {'status': False, 'message': 'Common row strike must be 0'}
     if not first_row_is_time_valid:
-        return False
+        return {'status': False, 'message': 'Common row is_time must be 1'}
     
-    # 3. If is_time is 1, vstart and v_cnt should be 0
+    # 2. If is_time is 1, v_cnt should be 0, vstart, vmid, vend should be -1
     is_time_1_mask = is_time_flags == 1
     is_time_1_count = np.sum(is_time_1_mask)
     
     if is_time_1_count > 0:
-        vstart_valid_for_is_time_1 = np.all(vstarts[is_time_1_mask] == 0)
-        v_cnt_valid_for_is_time_1 = np.all(v_cnts[is_time_1_mask] == 0)
+        v_cnt_valid = np.all(v_cnts[is_time_1_mask] == 0)
+        vstart_valid = np.all(vstarts[is_time_1_mask] == -1)
+        vmid_valid = np.all(vmids[is_time_1_mask] == -1)
+        vend_valid = np.all(vends[is_time_1_mask] == -1)
         
-        if not vstart_valid_for_is_time_1:
-            invalid_vstart_rows = np.where(is_time_1_mask & (vstarts != 0))[0]
-            return False
-            
-        if not v_cnt_valid_for_is_time_1:
-            invalid_v_cnt_rows = np.where(is_time_1_mask & (v_cnts != 0))[0]
-            return False
+        if not v_cnt_valid:
+            invalid_rows = np.where(is_time_1_mask & (v_cnts != 0))[0]
+            return {'status': False, 'message': f'v_cnt must be 0 when is_time=1. Rows: {invalid_rows}'}
+        
+        if not vstart_valid:
+            invalid_rows = np.where(is_time_1_mask & (vstarts != -1))[0]
+            return {'status': False, 'message': f'vstart must be -1 when is_time=1. Rows: {invalid_rows}'}
+        
+        if not vmid_valid:
+            invalid_rows = np.where(is_time_1_mask & (vmids != -1))[0]
+            return {'status': False, 'message': f'vmid must be -1 when is_time=1. Rows: {invalid_rows}'}
+        
+        if not vend_valid:
+            invalid_rows = np.where(is_time_1_mask & (vends != -1))[0]
+            return {'status': False, 'message': f'vend must be -1 when is_time=1. Rows: {invalid_rows}'}
     
-    # 4. If is_time is 0, v_cnt should be 1 + 1*(vend != 0)
-    is_time_0_mask = is_time_flags == 0
-    is_time_0_count = np.sum(is_time_0_mask)
-    
-    if is_time_0_count > 0:
-        expected_v_cnt = 1 + (vends[is_time_0_mask] != 0).astype(int)
-        actual_v_cnt = v_cnts[is_time_0_mask]
-        
-        v_cnt_valid_for_is_time_0 = np.all(actual_v_cnt == expected_v_cnt)
-        
-        if not v_cnt_valid_for_is_time_0:
-            invalid_mask = actual_v_cnt != expected_v_cnt
-            invalid_rows = np.where(is_time_0_mask)[0][invalid_mask]
-            return False
-        
-    return True
+    # 3. strike should be non-negative
+    if np.any(strikes < 0):
+        invalid_rows = np.where(strikes < 0)[0]
+        return {'status': False, 'message': f'strike must be non-negative. Rows: {invalid_rows}'}
+
+    return {'status': True, 'message': ''}
     
 def obj(x, dz, metric, each_shares, rfr, t, s0_target, voleq_target, tev0_target, ncomps, nsim, metric_id):
     st = mc(x[0], x[1], rfr, t, dz)
@@ -170,7 +172,13 @@ def obj(x, dz, metric, each_shares, rfr, t, s0_target, voleq_target, tev0_target
 def calibration_v(st, metric, each_shares, rfr, t, ncomps, nsim, metric_id, flag_output):
     strikes = metric[:, metric_id['strike'] - 1]
     vstarts = metric[:, metric_id['vstart'] - 1]
+    vmids = metric[:, metric_id['vmid'] - 1]
     vends = metric[:, metric_id['vend'] - 1]
+
+    vstarts_perc = metric[:, metric_id['vstart_perc'] - 1]
+    vmids_perc = metric[:, metric_id['vmid_perc'] - 1]
+    vends_perc = metric[:, metric_id['vend_perc'] - 1]
+
     is_time = metric[:, metric_id['is_time'] - 1].astype(bool)
     v_cnts = metric[:, metric_id['v_cnt'] - 1]
     is_cliff = metric[:, metric_id['is_cliff'] - 1].astype(bool)
@@ -184,21 +192,66 @@ def calibration_v(st, metric, each_shares, rfr, t, ncomps, nsim, metric_id, flag
     if step_vest_idx.size > 0:
         vest_array[:, step_vest_idx] = (st[:, np.newaxis] >= vstarts[step_vest_idx]).astype(int)
 
-    ramp_vest_idx = np.where(not_time & (v_cnts > 1) & ~is_cliff)[0]
+    ramp_vest_idx = np.where(not_time & (v_cnts == 2) & ~is_cliff)[0]
     if ramp_vest_idx.size > 0:
         ramp_vest_idx = ramp_vest_idx[~is_cliff[ramp_vest_idx]]
         denom = (vends[ramp_vest_idx] - vstarts[ramp_vest_idx])
         vested_ramp = np.maximum(0, np.minimum(1, (st[:, np.newaxis] - vstarts[ramp_vest_idx]) / denom))
         vest_array[:, ramp_vest_idx] = vested_ramp
     
-    cliff_vest_idx = np.where(not_time & (v_cnts > 1) & is_cliff)[0]
+    ramp_vest_3tranches_idx = np.where(not_time & (v_cnts == 3) & ~is_cliff)[0]
+    if ramp_vest_3tranches_idx.size > 0:
+        x0 = vstarts[ramp_vest_3tranches_idx]
+        x1 = vmids[ramp_vest_3tranches_idx]
+        x2 = vends[ramp_vest_3tranches_idx]
+        
+        y0 = vstarts_perc[ramp_vest_3tranches_idx]
+        y1 = vmids_perc[ramp_vest_3tranches_idx]
+        y2 = vends_perc[ramp_vest_3tranches_idx]
+        
+        x = st[:, np.newaxis]  # (nsim, 1)
+        
+        slope1 = (y1 - y0) / (x1 - x0)
+        seg1 = y0 + slope1 * (x - x0)
+        
+        slope2 = (y2 - y1) / (x2 - x1)
+        seg2 = y1 + slope2 * (x - x1)
+        
+        vested_3tranches = np.where((x >= x0) & (x < x1), seg1,
+                                    np.where((x >= x1) & (x < x2), seg2,
+                                    np.where(x >= x2, y2, y0)))
+        
+        vest_array[:, ramp_vest_3tranches_idx] = np.clip(vested_3tranches, 0, 1)
+
+    cliff_vest_idx = np.where(not_time & (v_cnts == 2) & is_cliff)[0]
     if cliff_vest_idx.size > 0:
-        # vmid = 0.5 * (vstarts + vends)
-        # 1/3 if st exceeds vstart, 2/3 if st exceeds vmid, 100% if st exceeds vend
-        vmid = 0.5 * (vstarts[cliff_vest_idx] + vends[cliff_vest_idx])
-        vest_array[:, cliff_vest_idx] = (1/3) * (st[:, np.newaxis] >= vstarts[cliff_vest_idx]).astype(int) + \
-                                        (1/3) * (st[:, np.newaxis] >= vmid).astype(int) + \
-                                        (1/3) * (st[:, np.newaxis] >= vends[cliff_vest_idx]).astype(int)
+        x0 = vstarts[cliff_vest_idx]
+        x2 = vends[cliff_vest_idx]
+        
+        y0 = vstarts_perc[cliff_vest_idx]
+        y2 = vends_perc[cliff_vest_idx]
+        
+        vested_cliff = np.where(x >= x2, y2,
+                        np.where(x >= x0, y0, 0))
+        
+        vest_array[:, cliff_vest_idx] = np.clip(vested_cliff, 0, 1)
+
+
+    cliff_vest_idx_3tranche = np.where(not_time & (v_cnts == 3) & is_cliff)[0]
+    if cliff_vest_idx_3tranche.size > 0:
+        x0 = vstarts[cliff_vest_idx_3tranche]
+        x1 = vmids[cliff_vest_idx_3tranche]
+        x2 = vends[cliff_vest_idx_3tranche]
+        
+        y0 = vstarts_perc[cliff_vest_idx_3tranche]
+        y1 = vmids_perc[cliff_vest_idx_3tranche]
+        y2 = vends_perc[cliff_vest_idx_3tranche]
+        
+        vested_cliff = np.where(x >= x2, y2,
+                        np.where(x >= x1, y1,
+                        np.where(x >= x0, y0, 0)))
+        
+        vest_array[:, cliff_vest_idx_3tranche] = np.clip(vested_cliff, 0, 1)
 
     payoff_per_share = payoff_per_share * vest_array
 

@@ -62,33 +62,38 @@ To use this app, you'll need:
 - **Cap table** (Excel or CSV format with security details)
   - To outline how the terms of each security can be expressed quantiatively, A example of cap table is showned that includes most popular instruments issued as stock-based compensations (Warrants, Options, RSU, PSU, Incentive Units..etc)
 
-    | class | shares | strike | vstart | vend | is_time | v_cnt | groups | is_cliff |
-    |-------|--------|--------|--------|------|---------|-------|---------|----------|
-    | Common | 10,000 | 0.00 | 0.00 | 0.00 | 1 | 0 | 1 | 0 |
-    | B1-Time | 100 | 10.00 | 0.00 | 0.00 | 1 | 0 | 2 | 0 |
-    | B1-Perf-Cliff | 100 | 10.00 | 20.00 | 30.00 | 0 | 2 | 2 | 1 |
-    | B1-Perf-Linear | 100 | 10.00 | 20.00 | 30.00 | 0 | 2 | 2 | 0 |
-    | B3-Time | 100 | 25.00 | 0.00 | 0.00 | 1 | 0 | 3 | 0 |
-    | B3-Perf-Cliff-3x-5x | 100 | 25.00 | 30.00 | 50.00 | 0 | 2 | 3 | 1 |
-    | B3-Perf-Linear-3x-5x | 100 | 25.00 | 30.00 | 50.00 | 0 | 2 | 3 | 0 |
-    | B3-Perf-Vest-Upon-3x | 100 | 25.00 | 30.00 | 0.00 | 0 | 1 | 3 | 1 |
-    | B3-Perf-Vest-Upon-4x | 100 | 25.00 | 40.00 | 0.00 | 0 | 1 | 3 | 1 |
-    | PSU-Vest-Upon-3x | 100 | 0.00 | 30.00 | 0.00 | 0 | 1 | 4 | 1 |
-    | PSU-Vest-Upon-4x | 100 | 0.00 | 40.00 | 0.00 | 0 | 1 | 4 | 1 |
-    | PSU-Cliff-3x-4x | 100 | 0.00 | 30.00 | 40.00 | 0 | 2 | 4 | 1 |
-    | PSU-Linear-3x-4x | 100 | 0.00 | 30.00 | 40.00 | 0 | 2 | 4 | 0 |
-    | PSU-Linear-0x-4x | 100 | 0.00 | 0.00 | 40.00 | 1 | 0 | 4 | 0 |
+   | class | shares | is_time | strike | v_cnt | vstart | vmid | vend | vstart_perc | vmid_perc | vend_perc | groups | is_cliff | Note |
+   |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|
+   | Common (Type of Time-Based) | 10,000 | 1 | 0 | 0 | -1 | -1 | -1 | -100.00% | -100.00% | -100.00% | 1 | 0 | Common (Type of Time-Based) - Time-Based Vesting |
+   | Security A | 100 | 1 | 10 | 0 | -1 | -1 | -1 | -100.00% | -100.00% | -100.00% | 2 | 0 | Security A - Time-Based Vesting |
+   | Security B | 100 | 0 | 10 | 2 | 20 | -1 | 30 | 50.00% | -100.00% | 100.00% | 2 | 1 | Security B - Performance-Based Vesting (Cliff), 2 Tranche(s) Vesting @ 20x / 30x, with vesting schedule of 50% / 100% |
+   | Security C | 100 | 0 | 10 | 2 | 20 | -1 | 30 | 50.00% | -100.00% | 100.00% | 2 | 0 | Security C - Performance-Based Vesting (Linear), 2 Tranche(s) Vesting @ 20x / 30x, with vesting schedule of 50% / 100% |
+   | Security D | 100 | 1 | 25 | 0 | -1 | -1 | -1 | -100.00% | -100.00% | -100.00% | 3 | 0 | Security D - Time-Based Vesting |
+   | Security E | 100 | 0 | 25 | 3 | 30 | 40 | 50 | 50.00% | 75.00% | 100.00% | 3 | 1 | Security E - Performance-Based Vesting (Cliff), 3 Tranche(s) Vesting @ 30x / 40x / 50x, with vesting schedule of 50% / 75% / 100% |
+   | Security F | 100 | 0 | 25 | 3 | 30 | 40 | 50 | 50.00% | 75.00% | 100.00% | 3 | 0 | Security F - Performance-Based Vesting (Linear), 3 Tranche(s) Vesting @ 30x / 40x / 50x, with vesting schedule of 50% / 75% / 100% |
+   | Security G | 100 | 0 | 25 | 1 | 30 | -1 | -1 | 100.00% | -100.00% | -100.00% | 3 | 1 | Security G - Performance-Based Vesting (Cliff), 1 Tranche(s) Vesting @ 30x, with vesting schedule of 100% |
+   | Security H | 100 | 0 | 25 | 1 | 40 | -1 | -1 | 100.00% | -100.00% | -100.00% | 3 | 1 | Security H - Performance-Based Vesting (Cliff), 1 Tranche(s) Vesting @ 40x, with vesting schedule of 100% |
+   | Security I | 100 | 0 | 0 | 1 | 30 | -1 | -1 | 100.00% | -100.00% | -100.00% | 4 | 1 | Security I - Performance-Based Vesting (Cliff), 1 Tranche(s) Vesting @ 30x, with vesting schedule of 100% |
+   | Security J | 100 | 0 | 0 | 1 | 40 | -1 | -1 | 100.00% | -100.00% | -100.00% | 4 | 1 | Security J - Performance-Based Vesting (Cliff), 1 Tranche(s) Vesting @ 40x, with vesting schedule of 100% |
+   | Security K | 100 | 0 | 0 | 2 | 30 | -1 | 40 | 0.00% | -100.00% | 100.00% | 4 | 1 | Security K - Performance-Based Vesting (Cliff), 2 Tranche(s) Vesting @ 30x / 40x, with vesting schedule of 0% / 100% |
+   | Security L | 100 | 0 | 0 | 2 | 30 | -1 | 40 | 0.00% | -100.00% | 100.00% | 4 | 0 | Security L - Performance-Based Vesting (Linear), 2 Tranche(s) Vesting @ 30x / 40x, with vesting schedule of 0% / 100% |
+   | Security M | 100 | 0 | 0 | 3 | 10 | 25 | 40 | 33.33% | 66.67% | 100.00% | 5 | 1 | Security M - Performance-Based Vesting (Cliff), 3 Tranche(s) Vesting @ 10x / 25x / 40x, with vesting schedule of 33% / 67% / 100% |
+   | Security N | 100 | 0 | 0 | 3 | 10 | 25 | 40 | 33.33% | 66.67% | 100.00% | 5 | 0 | Security N - Performance-Based Vesting (Linear), 3 Tranche(s) Vesting @ 10x / 25x / 40x, with vesting schedule of 33% / 67% / 100% |
 
 **Column Definitions:**
   - **class** - The name of the security class or instrument type
   - **shares** - Number of shares or units outstanding for this security
   - **strike** - Exercise price, strike price or distribution threshold with respect to the underlying security (for options/warrants)
   - **vstart** - Performance vesting threshold start value quoted in actual per share of underlying (equity multiple e.g., ROI, MOIC, MoM)
+  - **vmid** - Performance vesting threshold mid value in actual per share of underlying (equity multiple)
   - **vend** - Performance vesting threshold end value in actual per share of underlying (equity multiple)
+  - **vstart_perc** - Vesting schedule at vstart
+  - **vmid_perc** - Vesting schedule at vmid
+  - **vend_perc** - Vesting schedule at vend
   - **is_time** - Flag indicating if this is time-based vesting (1) or performance-based (0)
   - **v_cnt** - Vesting condition count (0=no vesting condition, 1=single vesting threshold, 2=range of vesting thresholds)
   - **groups** - Security group identifier typically by similar moneyness range, issue date, strike price, etc.
-  - **is_cliff** - Flag indicating cliff vesting (1) vs. linear vesting (0). By default the cliff vesting schedule uses 33%/33%/34% vesting schedule on vstart, vmid (midpoint of vstart and vend), vend respectively
+  - **is_cliff** - Flag indicating cliff vesting (1) vs. linear vesting (0).
 
 Download the [sample_cap_table.xlsx](https://github.com/jhqntdv/google-cloud-run/raw/main/data/sample_cap_table.xlsx) or [sample_cap_table.csv](https://github.com/jhqntdv/google-cloud-run/blob/main/data/sample_cap_table.csv) to get started.
 
