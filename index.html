@@ -1,0 +1,432 @@
+<!doctype html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>CS</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+        <style>
+            .layout-initial .input-col {
+                max-width: 720px;
+                margin-left: auto;
+                margin-right: auto;
+            }
+
+            .layout-initial .results-col {
+                display: none;
+            }
+
+            .layout-results .input-col {
+                flex: 0 0 auto;
+            }
+
+            .layout-results .results-col {
+                display: block;
+            }
+
+            @media (min-width: 992px) {
+                .layout-results .input-col {
+                    width: 18%;
+                    min-width: 220px;
+                }
+
+                .layout-results .results-col {
+                    width: 80%;
+                }
+            }
+
+            .summary-table-header th {
+                padding-top: 0.85rem;
+                padding-bottom: 0.85rem;
+                vertical-align: middle;
+            }
+
+            .summary-controls {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 0.75rem;
+                align-items: center;
+                margin-bottom: 0.75rem;
+            }
+
+            .summary-controls .form-check {
+                margin-bottom: 0;
+            }
+        </style>
+    </head>
+    <body class="bg-light">
+        <div id="page" class="container-lg py-5 layout-initial">
+            <div class="row g-4">
+                <div class="col-12 input-col">
+                    <div class="card shadow h-100">
+                        <div class="card-body p-4">
+                            <h1 class="text-center mb-4">CS</h1>
+                            <form id="cca-form" method="POST" enctype="multipart/form-data">
+                                <div class="mb-4 p-3 border rounded bg-light text-center">
+                                    <label class="form-label fw-bold">Upload Cap Table</label>
+                                    <input type="file" name="file" class="form-control" accept=".csv,.xlsx" required>
+                                </div>
+                                
+                                <!-- Input Method Selection -->
+                                <div class="mb-3 p-3 border rounded bg-light">
+                                    <label class="form-label fw-bold">Anchored By</label>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="input_method" id="stock_price_method" value="stock_price" checked>
+                                        <label class="form-check-label" for="stock_price_method">
+                                            Stock Price ($)
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="input_method" id="equity_value_method" value="equity_value">
+                                        <label class="form-check-label" for="equity_value_method">
+                                            TEV ($000s)
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="row g-3 mb-3">
+                                    <div class="col-12">
+                                        <label class="form-label">Stock Price ($)</label>
+                                        <input type="number" name="stock_price" id="stock_price_input" class="form-control" value="100.0" step="0.01">
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label">Total Equity Value (TEV in thousands)</label>
+                                        <input type="number" name="total_equity_value" id="equity_value_input" class="form-control" value="1200.0" step="0.1" disabled>
+                                        <div class="form-text">e.g., 1200 for $1.2M</div>
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label">Equity Volatility</label>
+                                        <input type="number" name="stock_volatility" class="form-control" value="0.45" step="0.01" min="0.01" max="1.0" required>
+                                        <div class="form-text">Range: 1 - 100 %</div>
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label">Time to Exit (Years)</label>
+                                        <input type="number" name="time_to_exit" id="time_to_exit_input" class="form-control" value="5.0" step="0.01" min="0.01" max="10" required>
+                                        <div class="form-text" id="time_range_hint">Range: 0.01 - 10 years</div>
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label">Risk Free Rate</label>
+                                        <input type="number" name="risk_free_rate" class="form-control" value="0.05" step="0.0001" min="0.0" required>
+                                    </div>
+                                </div>
+                                
+                                <button type="submit" class="btn btn-primary w-100 py-2">Run Analysis</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12 results-col">
+                    <div class="card shadow h-100">
+                        <div class="card-body p-4">
+                            <div id="results"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script src="config.js"></script>
+        <script>
+            window.API_BASE = window.API_BASE || 'http://127.0.0.1:5000';
+            // Handle input method switching
+            document.addEventListener('DOMContentLoaded', function() {
+                const stockPriceRadio = document.getElementById('stock_price_method');
+                const equityValueRadio = document.getElementById('equity_value_method');
+                const stockPriceInput = document.getElementById('stock_price_input');
+                const equityValueInput = document.getElementById('equity_value_input');
+                const timeToExitInput = document.getElementById('time_to_exit_input');
+                const timeRangeHint = document.getElementById('time_range_hint');
+
+                function updateInputs() {
+                    if (stockPriceRadio.checked) {
+                        stockPriceInput.disabled = false;
+                        stockPriceInput.required = true;
+                        equityValueInput.disabled = true;
+                        equityValueInput.required = false;
+                        equityValueInput.value = '0';
+
+                        // Time range for stock price method: 0 < t <= 10
+                        timeToExitInput.min = '0.01';
+                        timeToExitInput.max = '10';
+                        timeRangeHint.textContent = 'Range: 0.01 - 10 years';
+                    } else {
+                        stockPriceInput.disabled = true;
+                        stockPriceInput.required = false;
+                        stockPriceInput.value = '0';
+                        equityValueInput.disabled = false;
+                        equityValueInput.required = true;
+
+                        // Time range for equity value method: 0 < t <= 10
+                        timeToExitInput.min = '0.01';
+                        timeToExitInput.max = '10';
+                        timeRangeHint.textContent = 'Range: 0.01 - 10 years';
+                    }
+                }
+
+                function escapeHtml(value) {
+                    return String(value)
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;')
+                        .replace(/"/g, '&quot;')
+                        .replace(/'/g, '&#39;');
+                }
+
+                function formatNumber(value, digits) {
+                    if (value === null || value === undefined || Number.isNaN(Number(value))) {
+                        return 'N/A';
+                    }
+                    return Number(value).toFixed(digits);
+                }
+
+                function formatInteger(value) {
+                    if (value === null || value === undefined || Number.isNaN(Number(value))) {
+                        return 'N/A';
+                    }
+                    return Number(value).toLocaleString('en-US');
+                }
+
+                function formatCurrency(value, digits) {
+                    if (value === null || value === undefined || Number.isNaN(Number(value))) {
+                        return 'N/A';
+                    }
+                    return `$${Number(value).toFixed(digits)}`;
+                }
+
+                function formatPercent(value, digits) {
+                    if (value === null || value === undefined || Number.isNaN(Number(value))) {
+                        return 'N/A';
+                    }
+                    return `${(Number(value) * 100).toFixed(digits)}%`;
+                }
+
+                function applySummaryColumnToggles(container) {
+                    const toggles = container.querySelectorAll('[data-col]');
+                    toggles.forEach(toggle => {
+                        const colClass = toggle.getAttribute('data-col');
+                        const cells = container.querySelectorAll(`.${colClass}`);
+                        cells.forEach(cell => {
+                            if (toggle.checked) {
+                                cell.classList.remove('d-none');
+                            } else {
+                                cell.classList.add('d-none');
+                            }
+                        });
+                    });
+                }
+
+                function renderInputOverview(inputs) {
+                    const method = inputs.input_method;
+                    const stockPrice = method === 'stock_price'
+                        ? `Stock Price of <strong>${escapeHtml(formatCurrency(inputs.stock_price, 2))}</strong>`
+                        : `Total Equity Value of <strong>${escapeHtml(formatNumber(inputs.tev0_target / 1000, 0))} thousand(s)</strong>`;
+
+                    return `
+                        <div class="mb-4">
+                            <h5 class="mb-3">Input Overview</h5>
+                            <p class="mb-4" style="text-align: justify; line-height: 1.6;">
+                                The analysis was conducted using the following parameters: ${stockPrice},
+                                <strong>Volatility of ${escapeHtml(formatPercent(inputs.stock_volatility, 1))}</strong>,
+                                <strong>Time to Exit of ${escapeHtml(formatNumber(inputs.time_to_exit, 1))} years</strong>, and
+                                <strong>Risk-Free Rate of ${escapeHtml(formatPercent(inputs.risk_free_rate, 2))}</strong>.
+                            </p>
+                        </div>
+                    `;
+                }
+
+                function renderCapTable(capTable) {
+                    if (!capTable || !capTable.length) {
+                        return '<div class="text-muted">No cap table rows returned.</div>';
+                    }
+
+                    const headers = ['class', 'shares', 'strike', 'Note'];
+                    const thead = headers.map(header => {
+                        const alignClass = header === 'Note' ? 'text-start' : 'text-center';
+                        return `<th class="${alignClass}">${escapeHtml(header)}</th>`;
+                    }).join('');
+                    const tbody = capTable.map(row => {
+                        const cells = headers.map(header => {
+                            const value = row[header] === null || row[header] === undefined ? '' : row[header];
+                            const alignClass = header === 'Note' ? 'text-start' : 'text-center';
+                            let formattedValue = value;
+                            if (header === 'shares') {
+                                formattedValue = formatInteger(value);
+                            } else if (header === 'strike') {
+                                formattedValue = formatCurrency(value, 2);
+                            }
+                            return `<td class="${alignClass}">${escapeHtml(formattedValue)}</td>`;
+                        }).join('');
+                        return `<tr>${cells}</tr>`;
+                    }).join('');
+
+                    return `
+                        <h5 class="mb-3">Cap Table</h5>
+                        <div class="table-responsive" style="max-height: 400px; overflow-x: auto; max-width: 100%;">
+                            <table class="table table-striped table-bordered table-hover table-sm">
+                                <thead class="table-dark sticky-top"><tr>${thead}</tr></thead>
+                                <tbody>${tbody}</tbody>
+                            </table>
+                        </div>
+                    `;
+                }
+
+                function renderSummary(data) {
+                    const result = data.result || {};
+                    const inputs = data.inputs || {};
+                    const capTable = data.cap_table || [];
+
+                    const dilutionPct = typeof result.dilution === 'number' ? result.dilution * 100 : null;
+                    const equityVolPct = typeof result.voleq === 'number' ? result.voleq * 100 : null;
+                    const commonVolPct = typeof result.volcm === 'number' ? result.volcm * 100 : null;
+                    const timeToExit = inputs.time_to_exit || 0;
+
+                    const summaryDetail = timeToExit > 0.01
+                        // ? `Furthermore, we estimated the equity volatility to be <strong>${escapeHtml(formatNumber(equityVolPct, 2))}%</strong> and the common stock volatility to be <strong>${escapeHtml(formatNumber(commonVolPct, 2))}%</strong>. `
+                        ? ``
+                        : 'Based on the immediate exit scenario, we performed a liquidation analysis instead. ';
+
+                    const tableRows = (result.fair_value_per_share || []).map((fairValue, index) => {
+                        const className = capTable[index] && capTable[index].class ? capTable[index].class : `Class ${index + 1}`;
+                        const strikeVal = result.strikes && result.strikes[index] !== undefined ? result.strikes[index] : null;
+                        const timePerf = result.is_time && result.is_time[index] === 1 ? 'T' : 'P';
+                        const intrinsicVal = result.intrinsic_value_per_share && result.intrinsic_value_per_share[index] !== undefined
+                            ? result.intrinsic_value_per_share[index]
+                            : null;
+                        const specVol = result.spec_vol && result.spec_vol[index] !== undefined ? result.spec_vol[index] : null;
+                        const dlom = result.dlom && result.dlom[index] !== undefined ? result.dlom[index] : null;
+                        const fairValPost = result.fair_value_per_share_post_dlom && result.fair_value_per_share_post_dlom[index] !== undefined
+                            ? result.fair_value_per_share_post_dlom[index]
+                            : null;
+
+                        return `
+                            <tr>
+                                <td class="text-center">${escapeHtml(className)}</td>
+                                <td class="text-center">${escapeHtml(formatCurrency(strikeVal, 2))}</td>
+                                <td class="text-center">${escapeHtml(timePerf)}</td>
+                                <td class="text-center col-intrinsic">${escapeHtml(formatCurrency(intrinsicVal, 2))}</td>
+                                <td class="text-center col-specvol">${escapeHtml(formatPercent(specVol, 1))}</td>
+                                <td class="text-center col-fv">${escapeHtml(formatCurrency(fairValue, 2))}</td>
+                                <td class="text-center col-dlom">${escapeHtml(formatPercent(dlom, 1))}</td>
+                                <td class="text-center">${escapeHtml(formatCurrency(fairValPost, 2))}</td>
+                            </tr>
+                        `;
+                    }).join('');
+
+                    return `
+                        <div class="mb-4">
+                            <h2 class="text-center mb-4">Summary</h2>
+                            ${renderInputOverview(inputs)}
+                            ${renderCapTable(capTable)}
+                        </div>
+                        <div class="mt-4">
+                            <h5 class="mb-3">Analysis Summary</h5>
+                            <p class="mb-4" style="text-align: justify; line-height: 1.6;">
+                                Based on the analysis, there are <strong>${escapeHtml(result.num_of_class)}</strong> classes of equity instruments.
+                                The total equity value is <strong>${escapeHtml(formatNumber(result.tev0 / 1000, 0))} thousand(s)</strong> and Class A (common) accounts for <strong>${escapeHtml(formatNumber(dilutionPct, 2))}% of the total equity value</strong>.
+                                ${summaryDetail}
+                                The fair value per share of each class are detailed in the table below
+                            </p>
+
+                            <h6 class="mb-3">Fair Value Summary by Class</h6>
+                            <div class="summary-controls">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="toggle-intrinsic" data-col="col-intrinsic">
+                                    <label class="form-check-label" for="toggle-intrinsic">Intrinsic Value ($)</label>
+                                </div>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="toggle-specvol" data-col="col-specvol">
+                                    <label class="form-check-label" for="toggle-specvol">Specific Volatility (Rounded)</label>
+                                </div>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="toggle-fv" data-col="col-fv">
+                                    <label class="form-check-label" for="toggle-fv">FV ($)</label>
+                                </div>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="toggle-dlom" data-col="col-dlom">
+                                    <label class="form-check-label" for="toggle-dlom">DLOM (Rounded)</label>
+                                </div>
+                            </div>
+                            <div class="table-responsive" style="max-height: 400px; overflow-x: auto;">
+                                <table class="table table-striped table-bordered table-hover table-sm">
+                                    <thead class="table-dark sticky-top summary-table-header">
+                                        <tr>
+                                            <th class="text-center" style="min-width: 100px;">Class</th>
+                                            <th class="text-center" style="min-width: 120px;">Strike ($)</th>
+                                            <th class="text-center" style="min-width: 100px;">Vesting</th>
+                                            <th class="text-center col-intrinsic" style="min-width: 140px;">Intrinsic Value ($)</th>
+                                            <th class="text-center col-specvol" style="min-width: 120px;">Specific Volatility (Rounded)</th>
+                                            <th class="text-center col-fv" style="min-width: 140px;">FV ($)</th>
+                                            <th class="text-center col-dlom" style="min-width: 120px;">DLOM (Rounded)</th>
+                                            <th class="text-center" style="min-width: 140px;">FV after DLOM ($)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${tableRows || '<tr><td colspan="8" class="text-center text-muted">No results returned.</td></tr>'}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <p class="mb-2" style="text-align: justify; line-height: 1.6;">
+                                <em>Note:</em>
+                            </p>
+                            <p class="mb-2" style="text-align: justify; line-height: 1.6;">
+                                <em>- Marketability Discount (DLOM) were estimated using Finnerty Average-Strike Put Option (2012) formula and were rounded to the nearest 2.5%.</em>
+                            </p>
+                            <p class="mb-2" style="text-align: justify; line-height: 1.6;">
+                                <em>- The intrinsic value of each security were estimated as if the security exercised or had a liquidity event immediately by using the current estimated stock price.</em>
+                            </p>
+                            <p class="mb-2" style="text-align: justify; line-height: 1.6;">
+                                <em>- The FV were estimated through Monte Carlo Simulation with the provided inputs. The FV after DLOM represents a haircut on the FV due to illiquidity of the securities.</em>
+                            </p>
+                            <p class="mb-2" style="text-align: justify; line-height: 1.6;">
+                                <em>- The specific volatility, rounded to the nearest 2.5%, was used in the calculation of the Marketability Discount (DLOM).</em>
+                            </p>
+                            <p class="mb-2" style="text-align: justify; line-height: 1.6;">
+                                <em>- The analysis has verified the discount factor (Dt) of <strong>${escapeHtml(formatPercent(result.check && result.check[0], 2))}</strong> and convergence after <strong>${escapeHtml(result.iterations)}</strong> iterations</em>
+                            </p>
+                        </div>
+                    `;
+                }
+
+                stockPriceRadio.addEventListener('change', updateInputs);
+                equityValueRadio.addEventListener('change', updateInputs);
+                updateInputs(); // Initialize
+
+                const page = document.getElementById('page');
+                const form = document.getElementById('cca-form');
+                const results = document.getElementById('results');
+                const submitButton = form.querySelector('button[type="submit"]');
+
+                form.addEventListener('submit', async function(event) {
+                    event.preventDefault();
+
+                    results.innerHTML = '<div class="alert alert-info">Running analysis...</div>';
+                    submitButton.disabled = true;
+
+                    try {
+                        const response = await fetch(`${window.API_BASE}/api`, {
+                            method: 'POST',
+                            body: new FormData(form)
+                        });
+
+                        const data = await response.json();
+                        if (!response.ok) {
+                            results.innerHTML = `<div class="alert alert-danger">${escapeHtml(data.error || 'Request failed.')}</div>`;
+                            return;
+                        }
+
+                        results.innerHTML = renderSummary(data);
+                        page.classList.remove('layout-initial');
+                        page.classList.add('layout-results');
+                        applySummaryColumnToggles(results);
+                        results.querySelectorAll('[data-col]').forEach(toggle => {
+                            toggle.addEventListener('change', () => applySummaryColumnToggles(results));
+                        });
+                    } catch (err) {
+                        results.innerHTML = '<div class="alert alert-danger">Unable to reach the API endpoint.</div>';
+                    } finally {
+                        submitButton.disabled = false;
+                    }
+                });
+            });
+        </script>
+    </body>
+    </html>
